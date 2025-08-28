@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 Health Tracker - Samsung Wear OS Preview</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #f7fafc;
+            overflow-x: hidden;
+        }
+        
+        .phone-container {
+            max-width: 375px;
+            margin: 20px auto;
+            background: #000;
+            border-radius: 25px;
+            padding: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .screen {
+            background: #f7fafc;
+            border-radius: 18px;
+            overflow: hidden;
+            height: 667px;
+            position: relative;
+        }
+        
+        .status-bar {
+            background: #667eea;
+            height: 44px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 20px 30px 20px;
+            border-bottom-left-radius: 25px;
+            border-bottom-right-radius: 25px;
+            color: white;
+        }
+        
+        .header-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .header-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .content {
+            padding: 20px;
+            height: calc(100% - 160px);
+            overflow-y: auto;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        
+        .metric-card.heart-rate { border-left-color: #e53e3e; }
+        .metric-card.steps { border-left-color: #38a169; }
+        .metric-card.sleep { border-left-color: #3182ce; }
+        .metric-card.calories { border-left-color: #d69e2e; }
+        
+        .metric-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .metric-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+        
+        .metric-title {
+            font-size: 14px;
+            color: #4a5568;
+            font-weight: 600;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value.heart-rate { color: #e53e3e; }
+        .metric-value.steps { color: #38a169; }
+        .metric-value.sleep { color: #3182ce; }
+        .metric-value.calories { color: #d69e2e; }
+        
+        .metric-unit {
+            font-size: 12px;
+            color: #718096;
+        }
+        
+        .last-update {
+            text-align: center;
+            margin: 20px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .sync-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .sync-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .sync-button:active {
+            transform: translateY(0);
+        }
+        
+        .connection-status {
+            background: #48bb78;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .wear-os-info {
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .wear-os-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .loading {
+            display: none;
+            color: #667eea;
+            font-size: 14px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        @media (max-width: 400px) {
+            .phone-container {
+                margin: 10px;
+                max-width: none;
+            }
+        }
+        
+        .demo-controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .demo-controls.show {
+            display: block;
+        }
+        
+        .demo-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Controles de Demo -->
+    <div class="demo-controls" id="demoControls">
+        <div style="font-weight: bold; margin-bottom: 10px;">🎮 Controles de Demo</div>
+        <button class="demo-button" onclick="simulateWearOSSync()">📱 Simular Sync Wear OS</button>
+        <button class="demo-button" onclick="loadRealData()">📊 Cargar Datos Reales</button>
+        <button class="demo-button" onclick="toggleDemo()">❌ Ocultar</button>
+    </div>
+    
+    <!-- Simulador de Teléfono -->
+    <div class="phone-container">
+        <div class="screen">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>Samsung Galaxy</span>
+                <span>🔋 85%</span>
+            </div>
+            
+            <!-- Indicador de Conexión -->
+            <div class="connection-status" id="connectionStatus">
+                <div class="connection-dot"></div>
+                <span>Conectado a Supabase</span>
+            </div>
+            
+            <!-- Header -->
+            <div class="header">
+                <h1 class="header-title">Mi Salud</h1>
+                <p class="header-subtitle">Datos de tu smartwatch</p>
+            </div>
+            
+            <!-- Content -->
+            <div class="content">
+                <!-- Wear OS Info -->
+                <div class="wear-os-info">
+                    <div class="wear-os-title">
+                        ⌚ Samsung Galaxy Watch Connected
+                    </div>
+                    <div>Sincronizando datos de salud en tiempo real</div>
+                </div>
+                
+                <!-- Loading -->
+                <div class="loading" id="loading">🔄 Sincronizando datos...</div>
+                
+                <!-- Metrics Grid -->
+                <div class="metrics-grid">
+                    <!-- Heart Rate -->
+                    <div class="metric-card heart-rate">
+                        <div class="metric-header">
+                            <span class="metric-icon">💓</span>
+                            <span class="metric-title">Frecuencia Cardíaca</span>
+                        </div>
+                        <div class="metric-value heart-rate" id="heartRateValue">--</div>
+                        <div class="metric-unit">BPM</div>
+                    </div>
+                    
+                    <!-- Steps -->
+                    <div class="metric-card steps">
+                        <div class="metric-header">
+                            <span class="metric-icon">🚶</span>
+                            <span class="metric-title">Pasos Diarios</span>
+                        </div>
+                        <div class="metric-value steps" id="stepsValue">--</div>
+                        <div class="metric-unit">pasos</div>
+                    </div>
+                    
+                    <!-- Sleep -->
+                    <div class="metric-card sleep">
+                        <div class="metric-header">
+                            <span class="metric-icon">😴</span>
+                            <span class="metric-title">Horas de Sueño</span>
+                        </div>
+                        <div class="metric-value sleep" id="sleepValue">--</div>
+                        <div class="metric-unit">horas</div>
+                    </div>
+                    
+                    <!-- Calories -->
+                    <div class="metric-card calories">
+                        <div class="metric-header">
+                            <span class="metric-icon">🔥</span>
+                            <span class="metric-title">Calorías</span>
+                        </div>
+                        <div class="metric-value calories" id="caloriesValue">--</div>
+                        <div class="metric-unit">kcal</div>
+                    </div>
+                </div>
+                
+                <!-- Last Update -->
+                <div class="last-update" id="lastUpdate">
+                    Última actualización: Nunca
+                </div>
+                
+                <!-- Sync Button -->
+                <button class="sync-button" onclick="syncWearOSData()">
+                    🔄 Sincronizar Wear OS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://kgzqliseokkckbcjvdyx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MTkzMjg5OX0.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const TEST_USER_ID = 'samsung-user-demo';
+        const TEST_DEVICE_ID = 'galaxy-watch-6-classic';
+
+        // Variables de estado
+        let isConnected = false;
+        let currentData = {
+            heartRate: 0,
+            steps: 0,
+            sleepHours: 0,
+            calories: 0
+        };
+
+        // Inicializar app
+        document.addEventListener('DOMContentLoaded', async () => {
+            await testConnection();
+            await loadRealData();
+            
+            // Mostrar controles después de 3 segundos
+            setTimeout(() => {
+                document.getElementById('demoControls').classList.add('show');
+            }, 3000);
+        });
+
+        async function testConnection() {
+            try {
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('id')
+                    .limit(1);
+                
+                isConnected = !error;
+                updateConnectionStatus(isConnected);
+            } catch (error) {
+                isConnected = false;
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.innerHTML = '<div class="connection-dot"></div><span>Conectado a Supabase</span>';
+                status.style.background = '#48bb78';
+            } else {
+                status.innerHTML = '<div class="connection-dot"></div><span>Sin conexión</span>';
+                status.style.background = '#f56565';
+            }
+        }
+
+        async function loadRealData() {
+            try {
+                showLoading(true);
+                
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('*')
+                    .eq('user_id', TEST_USER_ID)
+                    .order('recorded_at', { ascending: false })
+                    .limit(10);
+
+                if (!error && data && data.length > 0) {
+                    // Procesar datos reales
+                    const heartRate = data.find(d => d.metric_type === 'heart_rate');
+                    const steps = data.find(d => d.metric_type === 'daily_steps');
+                    const sleep = data.find(d => d.metric_type === 'sleep_duration');
+                    const calories = data.find(d => d.metric_type === 'calories_burned');
+
+                    updateMetrics({
+                        heartRate: heartRate ? parseInt(heartRate.value) : 0,
+                        steps: steps ? parseInt(steps.value) : 0,
+                        sleepHours: sleep ? parseFloat(sleep.value) : 0,
+                        calories: calories ? parseInt(calories.value) : 0
+                    });
+                } else {
+                    // Datos de ejemplo si no hay datos reales
+                    updateMetrics({
+                        heartRate: 72,
+                        steps: 8542,
+                        sleepHours: 7.5,
+                        calories: 347
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Mostrar datos de ejemplo
+                updateMetrics({
+                    heartRate: 75,
+                    steps: 6234,
+                    sleepHours: 6.8,
+                    calories: 298
+                });
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function updateMetrics(data) {
+            currentData = data;
+            
+            // Actualizar UI con animación
+            animateValue('heartRateValue', data.heartRate);
+            animateValue('stepsValue', data.steps.toLocaleString());
+            animateValue('sleepValue', data.sleepHours);
+            animateValue('caloriesValue', data.calories);
+            
+            // Actualizar timestamp
+            document.getElementById('lastUpdate').textContent = 
+                `Última actualización: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function animateValue(elementId, newValue) {
+            const element = document.getElementById(elementId);
+            const startValue = element.textContent === '--' ? 0 : parseFloat(element.textContent.replace(/,/g, ''));
+            const endValue = typeof newValue === 'string' ? parseFloat(newValue.replace(/,/g, '')) : newValue;
+            const duration = 1000;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const current = startValue + (endValue - startValue) * progress;
+                
+                if (typeof newValue === 'string' && newValue.includes(',')) {
+                    element.textContent = Math.round(current).toLocaleString();
+                } else {
+                    element.textContent = Math.round(current * 10) / 10;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        async function syncWearOSData() {
+            showLoading(true);
+            
+            // Simular datos del Samsung Galaxy Watch
+            const mockData = {
+                heartRate: Math.floor(Math.random() * 30) + 65, // 65-95 BPM
+                steps: Math.floor(Math.random() * 3000) + 7000, // 7000-10000 pasos
+                sleepHours: parseFloat((Math.random() * 2 + 6.5).toFixed(1)), // 6.5-8.5 horas
+                calories: Math.floor(Math.random() * 250) + 250 // 250-500 cal
+            };
+
+            try {
+                // Insertar datos en Supabase
+                const timestamp = new Date().toISOString();
+                
+                await supabase.from('health_data').insert([
+                    {
+                        user_id: TEST_USER_ID,
+                        device_id: TEST_DEVICE_ID,
+                        metric_type: 'heart_rate',
+                        value: mockData.heartRate.toString(),
+                        recorded_at: timestamp,
+                        metadata: { source: 'samsung_galaxy_watch', model: 'SM-R930' }
+                    },
+                    {
+                        user_id: TEST_USER_ID,
+                        device_id: TEST_DEVICE_ID,
+                        metric_type: 'daily_steps',
+                        value: mockData.steps.toString(),
+                        recorded_at: timestamp,
+                        metadata: { date: new Date().toISOString().split('T')[0] }
+                    },
+                    {
+                        user_id: TEST_USER_ID,
+                        device_id: TEST_DEVICE_ID,
+                        metric_type: 'sleep_duration',
+                        value: mockData.sleepHours.toString(),
+                        recorded_at: timestamp,
+                        metadata: { quality: 'good', deep_sleep_percentage: 23 }
+                    },
+                    {
+                        user_id: TEST_USER_ID,
+                        device_id: TEST_DEVICE_ID,
+                        metric_type: 'calories_burned',
+                        value: mockData.calories.toString(),
+                        recorded_at: timestamp,
+                        metadata: { activity_level: 'moderate' }
+                    }
+                ]);
+
+                // Actualizar UI
+                updateMetrics(mockData);
+                
+                // Mostrar notificación
+                showNotification('✅ Datos sincronizados desde Samsung Galaxy Watch');
+                
+            } catch (error) {
+                console.error('Error syncing:', error);
+                showNotification('❌ Error al sincronizar datos');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function simulateWearOSSync() {
+            syncWearOSData();
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        function showNotification(message) {
+            // Crear notificación temporal
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #48bb78;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-size: 14px;
+                z-index: 2000;
+                opacity: 0;
+                transition: opacity 0.3s;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.style.opacity = '1', 100);
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+
+        function toggleDemo() {
+            const controls = document.getElementById('demoControls');
+            controls.classList.toggle('show');
+        }
+
+        // Actualización automática cada 30 segundos
+        setInterval(() => {
+            if (Math.random() > 0.7) { // 30% probabilidad
+                const updates = {};
+                if (Math.random() > 0.5) updates.heartRate = Math.floor(Math.random() * 10) + currentData.heartRate - 5;
+                if (Math.random() > 0.8) updates.steps = currentData.steps + Math.floor(Math.random() * 50);
+                
+                if (Object.keys(updates).length > 0) {
+                    updateMetrics({ ...currentData, ...updates });
+                }
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
