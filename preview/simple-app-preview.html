@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Tracker App - Vista Simple</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phone-container {
+            background: white;
+            width: 350px;
+            height: 700px;
+            border-radius: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-bar {
+            background: #F5F7FA;
+            color: #333;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid #E1E5E9;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 20px;
+            border-bottom: 1px solid #E1E5E9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2C3E50;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: #FF6B6B;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .logout-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            background: #F5F7FA;
+            overflow-y: auto;
+        }
+
+        .connection-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .connection-card.disconnected {
+            border-left-color: #FF5722;
+        }
+
+        .connection-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .connection-icon {
+            font-size: 24px;
+            margin-right: 8px;
+            color: #4CAF50;
+        }
+
+        .connection-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .connection-status {
+            color: #4CAF50;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .connection-status.disconnected {
+            color: #FF5722;
+        }
+
+        .last-sync {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 4px solid #2196F3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.heart-rate { border-left-color: #FF6B6B; }
+        .stat-card.sleep { border-left-color: #9C27B0; }
+        .stat-card.steps { border-left-color: #4CAF50; }
+        .stat-card.screen-time { border-left-color: #FF9800; }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .stat-icon {
+            font-size: 24px;
+            margin-right: 8px;
+        }
+
+        .stat-icon.heart-rate { color: #FF6B6B; }
+        .stat-icon.sleep { color: #9C27B0; }
+        .stat-icon.steps { color: #4CAF50; }
+        .stat-icon.screen-time { color: #FF9800; }
+
+        .stat-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-unit {
+            font-size: 16px;
+            font-weight: normal;
+            color: #666;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .action-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            flex: 0.48;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .action-button:hover {
+            background: #1976D2;
+        }
+
+        .sync-button {
+            background: #4CAF50;
+        }
+
+        .sync-button:hover {
+            background: #45a049;
+        }
+
+        .button-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .stat-card {
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <div class="status-bar">
+            09:41 AM • 📶 •••• 🔋 85%
+        </div>
+        
+        <div class="header">
+            <h1>Health Dashboard</h1>
+            <button class="logout-btn" onclick="logout()">🚪</button>
+        </div>
+        
+        <div class="content" id="content">
+            <!-- Connection Status -->
+            <div class="connection-card" id="connectionCard">
+                <div class="connection-header">
+                    <div class="connection-icon">⌚</div>
+                    <div class="connection-title">Wear OS Device</div>
+                </div>
+                <div class="connection-status" id="connectionStatus">Connected</div>
+                <div class="last-sync" id="lastSync">Last sync: 9:40 AM</div>
+            </div>
+
+            <!-- Today's Statistics -->
+            <div class="section-title">Today's Statistics</div>
+            
+            <div class="stat-card heart-rate">
+                <div class="stat-header">
+                    <div class="stat-icon heart-rate">❤️</div>
+                    <div class="stat-title">Heart Rate</div>
+                </div>
+                <div class="stat-value" id="heartRateValue">72 <span class="stat-unit">bpm</span></div>
+            </div>
+
+            <div class="stat-card sleep">
+                <div class="stat-header">
+                    <div class="stat-icon sleep">😴</div>
+                    <div class="stat-title">Sleep</div>
+                </div>
+                <div class="stat-value" id="sleepValue">8.2 <span class="stat-unit">hours</span></div>
+            </div>
+
+            <div class="stat-card steps">
+                <div class="stat-header">
+                    <div class="stat-icon steps">🚶</div>
+                    <div class="stat-title">Steps</div>
+                </div>
+                <div class="stat-value" id="stepsValue">8,247 <span class="stat-unit">steps</span></div>
+            </div>
+
+            <div class="stat-card screen-time">
+                <div class="stat-header">
+                    <div class="stat-icon screen-time">📱</div>
+                    <div class="stat-title">Screen Time</div>
+                </div>
+                <div class="stat-value" id="screenTimeValue">4.3 <span class="stat-unit">hours</span></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="button-container">
+                <button class="action-button sync-button" onclick="syncData()">
+                    <span class="button-icon" id="syncIcon">🔄</span>
+                    <span id="syncText">Sync Data</span>
+                </button>
+
+                <button class="action-button" onclick="viewHistory()">
+                    <span class="button-icon">📊</span>
+                    View History
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isConnected = true;
+        let isSyncing = false;
+
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            document.querySelector('.status-bar').innerHTML = 
+                `${timeString} • 📶 •••• 🔋 85%`;
+        }
+
+        function simulateDataUpdate() {
+            // Update heart rate (60-100 bpm)
+            const heartRate = Math.floor(Math.random() * 40) + 60;
+            document.getElementById('heartRateValue').innerHTML = 
+                `${heartRate} <span class="stat-unit">bpm</span>`;
+
+            // Update steps
+            let steps = parseInt(document.getElementById('stepsValue').textContent.replace(/[^\d]/g, ''));
+            steps += Math.floor(Math.random() * 100) + 10;
+            document.getElementById('stepsValue').innerHTML = 
+                `${steps.toLocaleString()} <span class="stat-unit">steps</span>`;
+
+            // Update last sync
+            const now = new Date();
+            document.getElementById('lastSync').textContent = 
+                `Last sync: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+        }
+
+        async function syncData() {
+            if (isSyncing) return;
+            
+            isSyncing = true;
+            const syncButton = document.querySelector('.sync-button');
+            const syncText = document.getElementById('syncText');
+            const syncIcon = document.getElementById('syncIcon');
+            
+            syncButton.style.opacity = '0.7';
+            syncText.textContent = 'Syncing...';
+            syncIcon.style.animation = 'spin 1s linear infinite';
+            
+            // Simulate sync process
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Update data
+            simulateDataUpdate();
+            
+            // Reset button
+            syncButton.style.opacity = '1';
+            syncText.textContent = 'Sync Data';
+            syncIcon.style.animation = '';
+            isSyncing = false;
+
+            // Show success feedback
+            showNotification('✅ Data synced successfully');
+        }
+
+        function viewHistory() {
+            showNotification('📊 Opening history view...');
+            // In a real app, this would navigate to history screen
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to sign out?')) {
+                showNotification('👋 Signing out...');
+                // In a real app, this would handle logout
+            }
+        }
+
+        function toggleConnection() {
+            isConnected = !isConnected;
+            const connectionCard = document.getElementById('connectionCard');
+            const connectionStatus = document.getElementById('connectionStatus');
+            
+            if (isConnected) {
+                connectionCard.classList.remove('disconnected');
+                connectionStatus.classList.remove('disconnected');
+                connectionStatus.textContent = 'Connected';
+                showNotification('⌚ Wear OS device reconnected');
+            } else {
+                connectionCard.classList.add('disconnected');
+                connectionStatus.classList.add('disconnected');
+                connectionStatus.textContent = 'Disconnected';
+                showNotification('⚠️ Wear OS device disconnected');
+            }
+        }
+
+        function showNotification(message) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #333;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 1000;
+                animation: slideDown 0.3s ease-out;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Add CSS for animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            @keyframes slideDown {
+                from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+                to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize
+        updateTime();
+        setInterval(updateTime, 60000); // Update time every minute
+        setInterval(simulateDataUpdate, 30000); // Update data every 30 seconds
+
+        // Add double-click to toggle connection
+        document.getElementById('connectionCard').addEventListener('dblclick', toggleConnection);
+
+        console.log('📱 Health Tracker Simple Demo loaded');
+        showNotification('🎉 Health Tracker App Ready!');
+    </script>
+</body>
+</html>

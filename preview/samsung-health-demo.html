@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Samsung Health Integration Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .demo-container {
+            background: white;
+            width: 350px;
+            height: 700px;
+            border-radius: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phone-header {
+            background: #1a237e;
+            color: white;
+            padding: 20px 20px 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .phone-header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .phone-header .time {
+            position: absolute;
+            top: 8px;
+            left: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .phone-header .battery {
+            position: absolute;
+            top: 8px;
+            right: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .demo-content {
+            padding: 20px;
+            height: calc(100% - 180px);
+            overflow-y: auto;
+        }
+
+        .connection-card {
+            background: #f8f9ff;
+            border: 2px solid #4CAF50;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-card.disconnected {
+            border-color: #ff5722;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .connection-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .connection-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            color: #4CAF50;
+        }
+
+        .connection-status {
+            color: #4CAF50;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .device-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .sync-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            width: 100%;
+            margin-top: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sync-button:hover {
+            background: #45a049;
+        }
+
+        .sync-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .sync-icon {
+            margin-right: 8px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #2196F3;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card.heart-rate { border-left-color: #FF6B6B; }
+        .stat-card.sleep { border-left-color: #9C27B0; }
+        .stat-card.steps { border-left-color: #4CAF50; }
+        .stat-card.screen-time { border-left-color: #FF9800; }
+
+        .stat-icon {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            opacity: 0.3;
+            font-size: 24px;
+        }
+
+        .stat-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+            animation: countUp 1s ease-out;
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .stat-unit {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .data-source {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 10px;
+            color: #999;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .sync-log {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 20px;
+            max-height: 120px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        .log-entry {
+            font-size: 12px;
+            color: #333;
+            margin-bottom: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: white;
+            border-left: 3px solid #2196F3;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .log-entry.success { border-left-color: #4CAF50; }
+        .log-entry.error { border-left-color: #f44336; }
+        .log-entry.warning { border-left-color: #ff9800; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .realtime-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 8px;
+            height: 8px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .footer-info {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="phone-header">
+            <div class="time">09:41</div>
+            <h1>Health Tracker</h1>
+            <div class="battery">🔋 85%</div>
+        </div>
+        
+        <div class="demo-content">
+            <!-- Samsung Health Connection -->
+            <div class="connection-card" id="connectionCard">
+                <div class="connection-header">
+                    <div class="connection-icon">⌚</div>
+                    <div>
+                        <div style="font-weight: 600; color: #333;">Samsung Galaxy Watch</div>
+                        <div class="connection-status" id="connectionStatus">Conectado</div>
+                    </div>
+                </div>
+                
+                <div class="device-info" id="deviceInfo">
+                    Galaxy Watch6 • Batería: 78% • Último sync: Ahora
+                </div>
+                
+                <button class="sync-button" id="syncButton" onclick="simulateSync()">
+                    <span class="sync-icon" id="syncIcon">🔄</span>
+                    <span id="syncText">Sincronizar con Galaxy Watch</span>
+                </button>
+            </div>
+
+            <!-- Health Stats -->
+            <div class="stats-grid">
+                <div class="stat-card heart-rate">
+                    <div class="realtime-indicator"></div>
+                    <div class="stat-icon">💓</div>
+                    <div class="stat-title">Frecuencia Cardíaca</div>
+                    <div class="stat-value" id="heartRateValue">72</div>
+                    <div class="stat-unit">bpm</div>
+                    <div class="data-source">Galaxy Watch</div>
+                </div>
+
+                <div class="stat-card sleep">
+                    <div class="stat-icon">😴</div>
+                    <div class="stat-title">Sueño</div>
+                    <div class="stat-value" id="sleepValue">8.2</div>
+                    <div class="stat-unit">horas</div>
+                    <div class="data-source">Galaxy Watch</div>
+                </div>
+
+                <div class="stat-card steps">
+                    <div class="realtime-indicator"></div>
+                    <div class="stat-icon">🚶</div>
+                    <div class="stat-title">Pasos</div>
+                    <div class="stat-value" id="stepsValue">8,247</div>
+                    <div class="stat-unit">pasos</div>
+                    <div class="data-source">Galaxy Watch</div>
+                </div>
+
+                <div class="stat-card screen-time">
+                    <div class="stat-icon">📱</div>
+                    <div class="stat-title">Tiempo Pantalla</div>
+                    <div class="stat-value" id="screenTimeValue">4.3</div>
+                    <div class="stat-unit">horas</div>
+                    <div class="data-source">Móvil</div>
+                </div>
+            </div>
+
+            <!-- Sync Log -->
+            <div class="sync-log" id="syncLog">
+                <div class="log-entry success">✅ Conectado a Galaxy Watch6</div>
+                <div class="log-entry success">💓 Datos cardíacos sincronizados (24 registros)</div>
+                <div class="log-entry success">😴 Sesión de sueño importada (8h 12m)</div>
+                <div class="log-entry success">🚶 Actividad diaria actualizada (8,247 pasos)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        💡 Demo de integración Samsung Health + React Native
+    </div>
+
+    <script>
+        let isConnected = true;
+        let isSyncing = false;
+
+        function updateTime() {
+            const now = new Date();
+            document.querySelector('.time').textContent = now.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function simulateHeartRateUpdate() {
+            const heartRateElement = document.getElementById('heartRateValue');
+            const baseRate = 72;
+            const variation = Math.floor(Math.random() * 20) - 10; // -10 to +10
+            const newRate = Math.max(60, Math.min(100, baseRate + variation));
+            
+            heartRateElement.style.animation = 'none';
+            setTimeout(() => {
+                heartRateElement.textContent = newRate;
+                heartRateElement.style.animation = 'countUp 0.5s ease-out';
+            }, 50);
+        }
+
+        function simulateStepsUpdate() {
+            const stepsElement = document.getElementById('stepsValue');
+            let currentSteps = parseInt(stepsElement.textContent.replace(',', ''));
+            currentSteps += Math.floor(Math.random() * 50) + 10;
+            
+            stepsElement.style.animation = 'none';
+            setTimeout(() => {
+                stepsElement.textContent = currentSteps.toLocaleString();
+                stepsElement.style.animation = 'countUp 0.5s ease-out';
+            }, 50);
+        }
+
+        function addLogEntry(message, type = 'success') {
+            const logContainer = document.getElementById('syncLog');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = message;
+            
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            // Remove old entries if too many
+            if (logContainer.children.length > 6) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        async function simulateSync() {
+            if (isSyncing) return;
+            
+            isSyncing = true;
+            const syncButton = document.getElementById('syncButton');
+            const syncText = document.getElementById('syncText');
+            const syncIcon = document.getElementById('syncIcon');
+            
+            syncButton.disabled = true;
+            syncText.textContent = 'Sincronizando...';
+            syncIcon.style.animation = 'spin 1s linear infinite';
+            
+            addLogEntry('🔄 Iniciando sincronización con Galaxy Watch...', 'warning');
+            
+            // Simulate sync steps
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            addLogEntry('💓 Sincronizando datos cardíacos...');
+            simulateHeartRateUpdate();
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            addLogEntry('🚶 Actualizando conteo de pasos...');
+            simulateStepsUpdate();
+            
+            await new Promise(resolve => setTimeout(resolve, 600));
+            addLogEntry('😴 Verificando datos de sueño...');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            addLogEntry('✅ Sincronización completada exitosamente');
+            
+            // Update last sync time
+            const deviceInfo = document.getElementById('deviceInfo');
+            const now = new Date();
+            deviceInfo.innerHTML = `Galaxy Watch6 • Batería: 78% • Último sync: ${now.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            })}`;
+            
+            // Reset button
+            syncButton.disabled = false;
+            syncText.textContent = 'Sincronizar con Galaxy Watch';
+            syncIcon.style.animation = '';
+            isSyncing = false;
+        }
+
+        function toggleConnection() {
+            isConnected = !isConnected;
+            const connectionCard = document.getElementById('connectionCard');
+            const connectionStatus = document.getElementById('connectionStatus');
+            
+            if (isConnected) {
+                connectionCard.classList.remove('disconnected');
+                connectionStatus.textContent = 'Conectado';
+                connectionStatus.style.color = '#4CAF50';
+                addLogEntry('✅ Galaxy Watch reconectado');
+            } else {
+                connectionCard.classList.add('disconnected');
+                connectionStatus.textContent = 'Desconectado';
+                connectionStatus.style.color = '#f44336';
+                addLogEntry('⚠️ Galaxy Watch desconectado', 'error');
+            }
+        }
+
+        // Initialize
+        updateTime();
+        setInterval(updateTime, 1000);
+        setInterval(simulateHeartRateUpdate, 10000); // Update heart rate every 10 seconds
+        setInterval(simulateStepsUpdate, 30000); // Update steps every 30 seconds
+
+        // Add click handler for connection toggle
+        document.getElementById('connectionCard').addEventListener('dblclick', toggleConnection);
+
+        // Auto-sync every 60 seconds
+        setInterval(() => {
+            if (!isSyncing && isConnected) {
+                simulateSync();
+            }
+        }, 60000);
+    </script>
+</body>
+</html>
