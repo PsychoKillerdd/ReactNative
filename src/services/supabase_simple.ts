@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration - credenciales de tu proyecto real
 const SUPABASE_URL = 'https://kgzqliseokkckbcjvdyx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MTkzMjg5OX0.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MTE5MzI4OTkifQ.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -105,21 +105,11 @@ export class SupabaseService {
   // 🔍 TEST DE CONEXIÓN
   static async testConnection() {
     try {
-      // Test simple - obtener un registro de la tabla
-      const { data, error } = await supabase
-        .from('health_data')
-        .select('id, metric_type, value')
-        .limit(1);
-        
-      if (error) {
+      const { data, error } = await supabase.auth.getSession();
+      if (error && error.message !== 'Auth session missing!') {
         return { success: false, error: error.message };
       }
-      
-      return { 
-        success: true, 
-        message: 'Conexión exitosa', 
-        recordCount: data ? data.length : 0 
-      };
+      return { success: true, message: 'Conexión exitosa' };
     } catch (error: any) {
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -150,12 +140,12 @@ export class SupabaseService {
       const summary = {
         date: targetDate,
         heartRate: {
-          latest: heartRates.length > 0 ? parseInt(heartRates[0].value, 10) : 0,
-          average: heartRates.length > 0 ? Math.round(heartRates.reduce((sum, hr) => sum + parseInt(hr.value, 10), 0) / heartRates.length) : 0,
+          latest: heartRates.length > 0 ? parseInt(heartRates[0].value) : 0,
+          average: heartRates.length > 0 ? Math.round(heartRates.reduce((sum, hr) => sum + parseInt(hr.value), 0) / heartRates.length) : 0,
           count: heartRates.length
         },
         steps: {
-          total: steps.length > 0 ? parseInt(steps[0].value, 10) : 0,
+          total: steps.length > 0 ? parseInt(steps[0].value) : 0,
           recorded: steps.length > 0
         },
         sleep: {

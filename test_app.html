@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test React Native Health App - Conexión Supabase</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #5a6fd8; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .data-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .health-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        .test-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .metric-label {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 React Native Health App - Test</h1>
+        <div id="status" class="info">Inicializando conexión a Supabase...</div>
+        
+        <div class="data-section">
+            <h3>🔗 Pruebas de Conectividad</h3>
+            <button onclick="testConnection()">Test Conexión Supabase</button>
+            <button onclick="loadExistingData()">Cargar Datos Existentes</button>
+            <button onclick="clearResults()">Limpiar Resultados</button>
+        </div>
+
+        <div class="data-section">
+            <h3>📊 Insertar Datos de Prueba</h3>
+            <div class="test-data">
+                <button onclick="insertTestHeartRate()">💓 Heart Rate (75 BPM)</button>
+                <button onclick="insertTestSteps()">🚶 Pasos (8542)</button>
+                <button onclick="insertTestSleep()">😴 Sueño (7.5h)</button>
+                <button onclick="insertTestCalories()">🔥 Calorías (347)</button>
+            </div>
+        </div>
+
+        <div class="data-section">
+            <h3>📈 Datos de Salud Recientes</h3>
+            <div id="healthData">
+                <div class="info">Presiona "Cargar Datos Existentes" para ver los datos...</div>
+            </div>
+        </div>
+
+        <div class="data-section">
+            <h3>📊 Resumen de Métricas</h3>
+            <div id="metricsData">
+                <div class="info">Los datos de métricas aparecerán aquí...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración idéntica a la app React Native
+        const SUPABASE_URL = 'https://kgzqliseokkckbcjvdyx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MTkzMjg5OX0.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
+
+        // Crear cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const TEST_USER_ID = 'test-user-web';
+        const TEST_DEVICE_ID = 'web-browser-test';
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function testConnection() {
+            try {
+                updateStatus('🔄 Probando conexión a Supabase...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('count(*)')
+                    .limit(1);
+                
+                if (error) {
+                    updateStatus(`❌ Error de conexión: ${error.message}`, 'error');
+                    return false;
+                }
+                
+                updateStatus('✅ Conexión exitosa a Supabase!', 'success');
+                return true;
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function insertHealthData(metricType, value, metadata = {}) {
+            try {
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .insert({
+                        user_id: TEST_USER_ID,
+                        device_id: TEST_DEVICE_ID,
+                        metric_type: metricType,
+                        value: value.toString(),
+                        recorded_at: new Date().toISOString(),
+                        metadata: metadata
+                    })
+                    .select();
+
+                if (error) {
+                    updateStatus(`❌ Error insertando ${metricType}: ${error.message}`, 'error');
+                    return false;
+                }
+
+                updateStatus(`✅ ${metricType} insertado exitosamente!`, 'success');
+                return data;
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function insertTestHeartRate() {
+            const heartRate = Math.floor(Math.random() * 30) + 60; // 60-90 BPM
+            return insertHealthData('heart_rate', heartRate, { 
+                source: 'web_test', 
+                accuracy: 95 
+            });
+        }
+
+        async function insertTestSteps() {
+            const steps = Math.floor(Math.random() * 2000) + 7000; // 7000-9000 pasos
+            return insertHealthData('daily_steps', steps, { 
+                date: new Date().toISOString().split('T')[0] 
+            });
+        }
+
+        async function insertTestSleep() {
+            const sleepHours = (Math.random() * 2 + 6.5).toFixed(1); // 6.5-8.5 horas
+            return insertHealthData('sleep_duration', sleepHours, { 
+                quality: 'good' 
+            });
+        }
+
+        async function insertTestCalories() {
+            const calories = Math.floor(Math.random() * 200) + 250; // 250-450 cal
+            return insertHealthData('calories_burned', calories, { 
+                activity_type: 'general' 
+            });
+        }
+
+        async function loadExistingData() {
+            try {
+                updateStatus('🔄 Cargando datos existentes...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('*')
+                    .order('recorded_at', { ascending: false })
+                    .limit(20);
+
+                if (error) {
+                    updateStatus(`❌ Error cargando datos: ${error.message}`, 'error');
+                    return;
+                }
+
+                displayHealthData(data);
+                calculateMetrics(data);
+                updateStatus(`✅ ${data.length} registros cargados`, 'success');
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function displayHealthData(data) {
+            const container = document.getElementById('healthData');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="info">No hay datos disponibles</div>';
+                return;
+            }
+
+            container.innerHTML = data.map(item => `
+                <div class="health-item">
+                    <strong>${item.metric_type}</strong>: ${item.value} 
+                    <small>(${new Date(item.recorded_at).toLocaleString()})</small>
+                    ${item.metadata ? `<br><small>📋 ${JSON.stringify(item.metadata)}</small>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function calculateMetrics(data) {
+            const container = document.getElementById('metricsData');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="info">No hay datos para calcular métricas</div>';
+                return;
+            }
+
+            const metrics = {};
+            data.forEach(item => {
+                if (!metrics[item.metric_type]) {
+                    metrics[item.metric_type] = [];
+                }
+                metrics[item.metric_type].push(parseFloat(item.value));
+            });
+
+            const cards = Object.keys(metrics).map(type => {
+                const values = metrics[type];
+                const avg = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
+                const latest = values[0];
+                const count = values.length;
+
+                return `
+                    <div class="metric-card">
+                        <div class="metric-value">${latest}</div>
+                        <div class="metric-label">${type.replace('_', ' ').toUpperCase()}</div>
+                        <small>Promedio: ${avg} | Total: ${count}</small>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = cards;
+        }
+
+        function clearResults() {
+            document.getElementById('healthData').innerHTML = '<div class="info">Resultados limpiados</div>';
+            document.getElementById('metricsData').innerHTML = '<div class="info">Métricas limpiadas</div>';
+            updateStatus('🧹 Resultados limpiados', 'info');
+        }
+
+        // Test inicial de conexión
+        window.onload = function() {
+            setTimeout(testConnection, 1000);
+        };
+    </script>
+</body>
+</html>

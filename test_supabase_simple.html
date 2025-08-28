@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .success { color: green; } .error { color: red; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        #results { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; min-height: 200px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Supabase Simple</h1>
+    
+    <button onclick="testConnection()">🔌 Test Conexión</button>
+    <button onclick="createTables()">📊 Crear Tablas</button>
+    <button onclick="insertTestData()">📝 Insertar Datos</button>
+    <button onclick="readData()">📖 Leer Datos</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://kgzqliseokkckbcjvdyx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MVE5MzI4OTkifQ.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            results.innerHTML += `<div class="${className}">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        async function testConnection() {
+            log('🔌 Probando conexión...');
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error && error.message !== 'Auth session missing!') {
+                    throw error;
+                }
+                log('✅ Conexión exitosa con Supabase', 'success');
+                
+                // Test simple query
+                const { data: testData, error: testError } = await supabase
+                    .rpc('version');
+                
+                if (testError) {
+                    log(`⚠️ Warning: ${testError.message}`);
+                } else {
+                    log('✅ Base de datos responde correctamente', 'success');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createTables() {
+            log('📊 Creando tablas...');
+            try {
+                // Crear tabla simple para health data
+                const { error } = await supabase.rpc('create_health_tables');
+                
+                if (error) {
+                    log(`⚠️ Usar SQL Editor para crear tablas: ${error.message}`);
+                } else {
+                    log('✅ Tablas creadas exitosamente', 'success');
+                }
+            } catch (error) {
+                log(`❌ Error creando tablas: ${error.message}`, 'error');
+                log('💡 Consejo: Ve al SQL Editor de Supabase y ejecuta el script SQL manualmente');
+            }
+        }
+
+        async function insertTestData() {
+            log('📝 Insertando datos de prueba...');
+            try {
+                // Insertar en tabla health_data directamente
+                const testData = {
+                    user_id: '12345678-1234-1234-1234-123456789012',
+                    device_id: 'test-device',
+                    metric_type: 'heart_rate',
+                    value: '75',
+                    recorded_at: new Date().toISOString(),
+                    metadata: { source: 'web_test' }
+                };
+
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .insert(testData)
+                    .select();
+
+                if (error) throw error;
+                
+                log('✅ Datos insertados correctamente', 'success');
+                log(`📊 Registro creado: Heart Rate ${testData.value} BPM`, 'success');
+            } catch (error) {
+                log(`❌ Error insertando datos: ${error.message}`, 'error');
+                if (error.message.includes('relation "health_data" does not exist')) {
+                    log('💡 Necesitas crear las tablas primero en el SQL Editor');
+                }
+            }
+        }
+
+        async function readData() {
+            log('📖 Leyendo datos...');
+            try {
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('*')
+                    .order('recorded_at', { ascending: false })
+                    .limit(5);
+
+                if (error) throw error;
+                
+                log(`✅ Encontrados ${data.length} registros`, 'success');
+                data.forEach((record, index) => {
+                    const date = new Date(record.recorded_at).toLocaleString();
+                    log(`  ${index + 1}. ${record.metric_type}: ${record.value} (${date})`, 'info');
+                });
+            } catch (error) {
+                log(`❌ Error leyendo datos: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto test
+        window.onload = function() {
+            log('🚀 Test de Supabase iniciado');
+            log('🔧 Presiona "Test Conexión" para empezar');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "userId": "12345678-1234-1234-1234-123456789012",
+  "deviceId": "galaxy-watch-6", 
+  "value": 75,
+  "timestamp": "2024-08-28T05:00:00.000Z",
+  "accuracy": 95,
+  "metadata": {
+    "source": "test_powershell"
+  }
+}

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Conexión Supabase - ACTUALIZADO</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #5a6fd8; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .credentials {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Test Conexión Supabase - CREDENCIALES ACTUALIZADAS</h1>
+        <div id="status" class="info">Probando conexión con anon key actualizado...</div>
+        
+        <div class="credentials">
+            <strong>🔗 Configuración actual:</strong><br>
+            URL: https://kgzqliseokkckbcjvdyx.supabase.co<br>
+            Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs...(anon key)
+        </div>
+        
+        <div class="test-buttons">
+            <button onclick="testConnection()">🔄 Test Conexión</button>
+            <button onclick="testInsert()">➕ Test Insert</button>
+            <button onclick="testSelect()">📊 Test Select</button>
+            <button onclick="loadAllData()">📋 Ver Todos los Datos</button>
+        </div>
+
+        <div id="results" style="margin-top: 20px;">
+            <div class="info">Presiona cualquier botón para comenzar las pruebas...</div>
+        </div>
+    </div>
+
+    <script>
+        // ✅ CREDENCIALES ACTUALIZADAS CON ANON KEY CORRECTO
+        const SUPABASE_URL = 'https://kgzqliseokkckbcjvdyx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MTkzMjg5OX0.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
+
+        // Crear cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function updateResults(content) {
+            document.getElementById('results').innerHTML = content;
+        }
+
+        async function testConnection() {
+            try {
+                updateStatus('🔄 Probando conexión básica...', 'info');
+                
+                // Test simple de conexión - solo obtener 1 registro
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('id, metric_type, value')
+                    .limit(1);
+                
+                if (error) {
+                    updateStatus(`❌ Error: ${error.message}`, 'error');
+                    updateResults(`<div class="error">❌ Detalles del error: ${JSON.stringify(error, null, 2)}</div>`);
+                    return false;
+                }
+                
+                updateStatus('✅ ¡Conexión exitosa!', 'success');
+                updateResults(`<div class="success">✅ Conexión establecida correctamente<br>Registros encontrados: ${data ? data.length : 0}<br>Datos: ${JSON.stringify(data, null, 2)}</div>`);
+                return true;
+            } catch (error) {
+                updateStatus(`❌ Error de JavaScript: ${error.message}`, 'error');
+                updateResults(`<div class="error">❌ Error de JavaScript: ${error.message}</div>`);
+                return false;
+            }
+        }
+
+        async function testInsert() {
+            try {
+                updateStatus('➕ Probando inserción de datos...', 'info');
+                
+                const testData = {
+                    user_id: 'test-user-' + Date.now(),
+                    device_id: 'web-test',
+                    metric_type: 'heart_rate',
+                    value: '75',
+                    recorded_at: new Date().toISOString(),
+                    metadata: { source: 'web_test', timestamp: new Date().toISOString() }
+                };
+
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .insert(testData)
+                    .select();
+
+                if (error) {
+                    updateStatus(`❌ Error insertando: ${error.message}`, 'error');
+                    updateResults(`<div class="error">❌ Error de inserción: ${JSON.stringify(error, null, 2)}</div>`);
+                    return false;
+                }
+
+                updateStatus('✅ Dato insertado exitosamente!', 'success');
+                updateResults(`<div class="success">✅ Insertado correctamente:<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`);
+                return true;
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                updateResults(`<div class="error">❌ Error: ${error.message}</div>`);
+                return false;
+            }
+        }
+
+        async function testSelect() {
+            try {
+                updateStatus('📊 Obteniendo datos recientes...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('*')
+                    .order('recorded_at', { ascending: false })
+                    .limit(5);
+
+                if (error) {
+                    updateStatus(`❌ Error obteniendo datos: ${error.message}`, 'error');
+                    updateResults(`<div class="error">❌ Error: ${JSON.stringify(error, null, 2)}</div>`);
+                    return false;
+                }
+
+                updateStatus(`✅ ${data.length} registros obtenidos`, 'success');
+                updateResults(`
+                    <div class="success">
+                        <strong>✅ Últimos ${data.length} registros:</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `);
+                return true;
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                updateResults(`<div class="error">❌ Error: ${error.message}</div>`);
+                return false;
+            }
+        }
+
+        async function loadAllData() {
+            try {
+                updateStatus('📋 Cargando todos los datos...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('*')
+                    .order('recorded_at', { ascending: false })
+                    .limit(50);
+
+                if (error) {
+                    updateStatus(`❌ Error: ${error.message}`, 'error');
+                    updateResults(`<div class="error">❌ Error: ${JSON.stringify(error, null, 2)}</div>`);
+                    return false;
+                }
+
+                updateStatus(`✅ ${data.length} registros totales encontrados`, 'success');
+                
+                const grouped = {};
+                data.forEach(item => {
+                    if (!grouped[item.metric_type]) grouped[item.metric_type] = [];
+                    grouped[item.metric_type].push(item);
+                });
+
+                let html = `<div class="success"><strong>✅ Total: ${data.length} registros</strong><br><br>`;
+                
+                Object.keys(grouped).forEach(type => {
+                    html += `<strong>${type}:</strong> ${grouped[type].length} registros<br>`;
+                });
+                
+                html += `<br><details><summary>Ver todos los datos (Click para expandir)</summary><pre>${JSON.stringify(data, null, 2)}</pre></details></div>`;
+                
+                updateResults(html);
+                return true;
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                updateResults(`<div class="error">❌ Error: ${error.message}</div>`);
+                return false;
+            }
+        }
+
+        // Auto-test al cargar
+        window.onload = function() {
+            setTimeout(() => {
+                testConnection();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

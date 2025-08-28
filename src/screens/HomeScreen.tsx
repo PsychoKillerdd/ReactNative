@@ -1,373 +1,251 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
   RefreshControl,
 } from 'react-native';
-// @ts-ignore
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { HealthService } from '../services/healthDrizzle';
 import { SupabaseService } from '../services/supabase';
-import { WearOSConnection, HeartRateData, SleepData, StepData, ScreenTimeData } from '../types/health';
 
-interface HomeScreenProps {
-  navigation: any;
+interface HealthData {
+  heartRate: number;
+  steps: number;
+  sleepHours: number;
+  calories: number;
+  lastUpdate: string;
 }
 
-const StatCard: React.FC<{
-  title: string;
-  value: string | number;
-  unit: string;
-  icon: string;
-  color: string;
-}> = ({ title, value, unit, icon, color }) => (
-  <View style={[styles.statCard, { borderLeftColor: color }]}>
-    <View style={styles.statCardHeader}>
-      <Icon name={icon} size={24} color={color} />
-      <Text style={styles.statCardTitle}>{title}</Text>
-    </View>
-    <Text style={styles.statCardValue}>
-      {value} <Text style={styles.statCardUnit}>{unit}</Text>
-    </Text>
-  </View>
-);
-
-const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [wearOSStatus, setWearOSStatus] = useState<WearOSConnection>({ isConnected: false });
-  const [todayStats, setTodayStats] = useState<{
-    heartRate: HeartRateData | null;
-    sleep: SleepData | null;
-    steps: StepData | null;
-    screenTime: ScreenTimeData | null;
-  }>({
-    heartRate: null,
-    sleep: null,
-    steps: null,
-    screenTime: null,
+const HomeScreen: React.FC = () => {
+  const [healthData, setHealthData] = useState<HealthData>({
+    heartRate: 0,
+    steps: 0,
+    sleepHours: 0,
+    calories: 0,
+    lastUpdate: 'Nunca'
   });
-
-  const loadData = useCallback(async () => {
-    try {
-      // Get Wear OS connection status
-      const status = await HealthService.getWearOSConnectionStatus();
-      setWearOSStatus(status);
-
-      // Get today's stats
-      const stats = await HealthService.getTodayStats();
-      setTodayStats(stats);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  }, []);
-
-  const initializeApp = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      
-      // Get current user
-      const user = await SupabaseService.getCurrentUser();
-      if (!user) {
-        // Navigate to login if not authenticated
-        navigation.navigate('Login');
-        return;
-      }
-
-      // Initialize health service
-      await HealthService.initialize(user.id);
-      
-      // Load initial data
-      await loadData();
-    } catch (error) {
-      console.error('Error initializing app:', error);
-      Alert.alert('Error', 'Failed to initialize the application');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigation, loadData]);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Usuario de prueba
+  const TEST_USER_ID = 'user-123';
+  const TEST_DEVICE_ID = 'galaxy-watch-6';
 
   useEffect(() => {
-    initializeApp();
-  }, [initializeApp]);
+    loadHealthData();
+  }, []);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
+  const loadHealthData = async () => {
     try {
-      await HealthService.syncAllHealthData();
-      await loadData();
+      setRefreshing(true);
+      
+      // Cargar datos recientes
+      const result = await SupabaseService.getRecentHealthData(TEST_USER_ID, 7);
+      
+      if (result.success && result.data) {
+        // Procesar datos para mostrar las métricas más recientes
+        const data = result.data;
+        
+        const latestHeartRate = data.find(d => d.metric_type === 'heart_rate');
+        const latestSteps = data.find(d => d.metric_type === 'daily_steps');  
+        const latestSleep = data.find(d => d.metric_type === 'sleep_duration');
+        const latestCalories = data.find(d => d.metric_type === 'calories_burned');
+        
+        setHealthData({
+          heartRate: latestHeartRate ? parseInt(latestHeartRate.value, 10) : 0,
+          steps: latestSteps ? parseInt(latestSteps.value, 10) : 0,
+          sleepHours: latestSleep ? parseFloat(latestSleep.value) : 0,
+          calories: latestCalories ? parseInt(latestCalories.value, 10) : 0,
+          lastUpdate: new Date().toLocaleTimeString()
+        });
+      }
     } catch (error) {
-      console.error('Error refreshing data:', error);
-      Alert.alert('Sync Error', 'Failed to sync health data');
+      console.error('Error cargando datos:', error);
     } finally {
       setRefreshing(false);
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await SupabaseService.signOut();
-      HealthService.cleanup();
-      navigation.navigate('Login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      Alert.alert('Error', 'Failed to sign out');
-    }
-  };
+  const syncWearOSData = async () => {
+    Alert.alert(
+      'Sincronización Wear OS',
+      '¿Deseas sincronizar los datos de tu smartwatch?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Sincronizar', 
+          onPress: async () => {
+            // Simular datos de Wear OS
+            const mockData = {
+              heartRate: Math.floor(Math.random() * 40) + 60, // 60-100 BPM
+              steps: Math.floor(Math.random() * 5000) + 5000, // 5000-10000 pasos
+              sleepHours: parseFloat((Math.random() * 2 + 6.5).toFixed(1)), // 6.5-8.5 horas
+              calories: Math.floor(Math.random() * 300) + 200 // 200-500 cal
+            };
 
-  const getConnectionStatusColor = () => {
-    return wearOSStatus.isConnected ? '#4CAF50' : '#FF5722';
-  };
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading health data...</Text>
-      </SafeAreaView>
+            try {
+              // Insertar datos simulados
+              await SupabaseService.insertHeartRate(TEST_USER_ID, TEST_DEVICE_ID, mockData.heartRate);
+              await SupabaseService.insertDailySteps(TEST_USER_ID, TEST_DEVICE_ID, mockData.steps);
+              await SupabaseService.insertSleepData(TEST_USER_ID, TEST_DEVICE_ID, mockData.sleepHours);
+              
+              // Actualizar UI
+              setHealthData({
+                ...mockData,
+                lastUpdate: new Date().toLocaleTimeString()
+              });
+              
+              Alert.alert('✅ Sincronización exitosa', 'Datos de Wear OS actualizados');
+            } catch (error) {
+              Alert.alert('❌ Error', 'No se pudieron sincronizar los datos');
+            }
+          }
+        }
+      ]
     );
-  }
+  };
+
+  const renderMetricCard = (title: string, value: string | number, unit: string, icon: string, color: string) => (
+    <View style={[styles.metricCard, { borderLeftColor: color }]}>
+      <View style={styles.metricHeader}>
+        <Text style={styles.metricIcon}>{icon}</Text>
+        <Text style={styles.metricTitle}>{title}</Text>
+      </View>
+      <Text style={[styles.metricValue, { color }]}>{value}</Text>
+      <Text style={styles.metricUnit}>{unit}</Text>
+    </View>
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Health Dashboard</Text>
-        <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
-          <Icon name="logout" size={24} color="#FF6B6B" />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mi Salud</Text>
+        <Text style={styles.headerSubtitle}>Datos de tu smartwatch</Text>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
+      <ScrollView 
+        style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={loadHealthData} />
         }
       >
-        {/* Wear OS Connection Status */}
-        <View style={styles.connectionCard}>
-          <View style={styles.connectionHeader}>
-            <Icon
-              name="watch"
-              size={24}
-              color={getConnectionStatusColor()}
-            />
-            <Text style={styles.connectionTitle}>Wear OS Device</Text>
-          </View>
-          <Text
-            style={[
-              styles.connectionStatus,
-              { color: getConnectionStatusColor() }
-            ]}
-          >
-            {wearOSStatus.isConnected ? 'Connected' : 'Disconnected'}
+        <View style={styles.metricsGrid}>
+          {renderMetricCard('Frecuencia Cardíaca', healthData.heartRate || '--', 'BPM', '💓', '#e53e3e')}
+          {renderMetricCard('Pasos Diarios', healthData.steps.toLocaleString() || '--', 'pasos', '🚶', '#38a169')}
+          {renderMetricCard('Horas de Sueño', healthData.sleepHours || '--', 'horas', '😴', '#3182ce')}
+          {renderMetricCard('Calorías', healthData.calories || '--', 'kcal', '🔥', '#d69e2e')}
+        </View>
+
+        <View style={styles.lastUpdateContainer}>
+          <Text style={styles.lastUpdateText}>
+            Última actualización: {healthData.lastUpdate}
           </Text>
-          {wearOSStatus.lastSync && (
-            <Text style={styles.lastSync}>
-              Last sync: {new Date(wearOSStatus.lastSync).toLocaleTimeString()}
-            </Text>
-          )}
         </View>
 
-        {/* Today's Stats */}
-        <Text style={styles.sectionTitle}>Today's Statistics</Text>
-        
-        <StatCard
-          title="Heart Rate"
-          value={todayStats.heartRate?.value || '--'}
-          unit="bpm"
-          icon="favorite"
-          color="#FF6B6B"
-        />
-
-        <StatCard
-          title="Sleep"
-          value={todayStats.sleep?.duration ? todayStats.sleep.duration.toFixed(1) : '--'}
-          unit="hours"
-          icon="bedtime"
-          color="#9C27B0"
-        />
-
-        <StatCard
-          title="Steps"
-          value={todayStats.steps?.count || '--'}
-          unit="steps"
-          icon="directions-walk"
-          color="#4CAF50"
-        />
-
-        <StatCard
-          title="Screen Time"
-          value={todayStats.screenTime?.duration ? todayStats.screenTime.duration.toFixed(1) : '--'}
-          unit="hours"
-          icon="phone-android"
-          color="#FF9800"
-        />
-
-        {/* Action Buttons */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.syncButton]}
-            onPress={handleRefresh}
-            disabled={refreshing}
-          >
-            <Icon 
-              name="sync" 
-              size={18} 
-              color="#FFF" 
-            />
-            <Text style={styles.actionButtonText}>
-              {refreshing ? 'Syncing...' : 'Sync Data'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('History')}
-          >
-            <Icon name="history" size={18} color="#FFF" />
-            <Text style={styles.actionButtonText}>View History</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={styles.syncButton}
+          onPress={syncWearOSData}
+        >
+          <Text style={styles.syncButtonText}>🔄 Sincronizar Wear OS</Text>
+        </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
+    backgroundColor: '#f7fafc',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: '#667eea',
+    paddingTop: 60,
+    paddingBottom: 30,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E1E5E9',
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#2C3E50',
+    color: 'white',
+    marginBottom: 5,
   },
-  signOutButton: {
-    padding: 8,
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  scrollView: {
+  content: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
   },
-  connectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF5722',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  connectionHeader: {
+  metricsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  connectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-    color: '#333',
-  },
-  connectionStatus: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  lastSync: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-  },
-  statCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-    color: '#333',
-  },
-  statCardValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statCardUnit: {
-    fontSize: 16,
-    fontWeight: 'normal',
-    color: '#666',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginBottom: 20,
   },
-  actionButton: {
-    backgroundColor: '#2196F3',
-    borderRadius: 12,
-    padding: 16,
+  metricCard: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
+    width: '48%',
+    marginBottom: 15,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  metricHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 0.48,
+    marginBottom: 10,
+  },
+  metricIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  metricTitle: {
+    fontSize: 14,
+    color: '#4a5568',
+    fontWeight: '600',
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  metricUnit: {
+    fontSize: 12,
+    color: '#718096',
+  },
+  lastUpdateContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  lastUpdateText: {
+    fontSize: 14,
+    color: '#718096',
   },
   syncButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#667eea',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 30,
   },
-  actionButtonText: {
-    color: '#FFFFFF',
+  syncButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
   },
 });
 

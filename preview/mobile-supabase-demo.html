@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Tracker - Vista Mobile con Supabase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .mobile-frame {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 40px;
+            padding: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .status-bar {
+            height: 44px;
+            background: #1e40af;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .container {
+            padding: 20px;
+            height: calc(100% - 44px);
+            overflow-y: auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #1e40af;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header .subtitle {
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .connection-status {
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-block;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .connection-status.connected {
+            background: #10b981;
+        }
+        
+        .connection-status.error {
+            background: #ef4444;
+        }
+        
+        .connection-status.loading {
+            background: #f59e0b;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px 15px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card .icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 4px;
+        }
+        
+        .stat-card .label {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            background: #1e40af;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .recent-data {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .recent-data h3 {
+            color: #1e40af;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .data-item:last-child {
+            border-bottom: none;
+        }
+        
+        .data-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+        
+        .data-value {
+            color: #1e40af;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #64748b;
+            font-size: 14px;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #1e40af;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .tech-badge {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="mobile-frame">
+        <div class="screen">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span id="currentTime">9:41</span>
+                <span>Health Tracker</span>
+                <span>100%</span>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="container">
+                <!-- Header -->
+                <div class="header">
+                    <h1>🏥 Health Tracker</h1>
+                    <p class="subtitle">Samsung Galaxy Watch + Supabase</p>
+                    <div id="connectionStatus" class="connection-status loading">
+                        ⏳ Conectando a Supabase...
+                    </div>
+                </div>
+                
+                <!-- Error/Success Messages -->
+                <div id="messageContainer"></div>
+                
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon">💓</div>
+                        <div class="value" id="heartRateValue">--</div>
+                        <div class="label">Heart Rate</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="icon">🚶</div>
+                        <div class="value" id="stepsValue">--</div>
+                        <div class="label">Steps Today</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="icon">😴</div>
+                        <div class="value" id="sleepValue">--</div>
+                        <div class="label">Sleep</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="icon">🔥</div>
+                        <div class="value" id="caloriesValue">--</div>
+                        <div class="label">Calories</div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="buttons">
+                    <button class="btn" id="syncButton" onclick="syncWithSupabase()">
+                        🔄 Sync Samsung Health Data
+                    </button>
+                    
+                    <button class="btn btn-secondary" onclick="viewHistory()">
+                        📊 View History
+                    </button>
+                </div>
+                
+                <!-- Recent Data -->
+                <div class="recent-data">
+                    <h3>📈 Datos en Tiempo Real (Supabase)</h3>
+                    
+                    <div class="data-item">
+                        <span class="data-label">Backend API</span>
+                        <span class="data-value" id="backendStatus">Verificando...</span>
+                    </div>
+                    
+                    <div class="data-item">
+                        <span class="data-label">Supabase Connection</span>
+                        <span class="data-value" id="supabaseStatus">Conectando...</span>
+                    </div>
+                    
+                    <div class="data-item">
+                        <span class="data-label">Last Sync</span>
+                        <span class="data-value" id="lastSync">--</span>
+                    </div>
+                    
+                    <div class="data-item">
+                        <span class="data-label">Records Count</span>
+                        <span class="data-value" id="recordsCount">--</span>
+                    </div>
+                </div>
+                
+                <div id="loading" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>Sincronizando con Supabase...</span>
+                </div>
+            </div>
+            
+            <div class="tech-badge">
+                React Native + Supabase
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuración de Supabase - TU PROYECTO REAL
+        const SUPABASE_URL = 'https://kgzqliseokkckbcjvdyx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnenFsaXNlb2trY2tiY2p2ZHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTY4OTksImV4cCI6MjA3MVQ5MzI4OTkifQ.g_p_iwd_IjB5W0JLeWH-ztpNIhXQCITc1j0ZUDdaLBc';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Usuario de prueba
+        const TEST_USER_ID = '12345678-1234-1234-1234-123456789012';
+        
+        let isLoading = false;
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            checkBackendConnection();
+            loadHealthDataFromSupabase();
+            
+            // Auto refresh cada 30 segundos
+            setInterval(loadHealthDataFromSupabase, 30000);
+        });
+        
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+        }
+        
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch('http://localhost:3001/health');
+                if (response.ok) {
+                    document.getElementById('backendStatus').textContent = '✅ Online';
+                } else {
+                    document.getElementById('backendStatus').textContent = '❌ Error';
+                }
+            } catch (error) {
+                document.getElementById('backendStatus').textContent = '❌ Offline';
+            }
+        }
+        
+        async function loadHealthDataFromSupabase() {
+            try {
+                document.getElementById('supabaseStatus').textContent = '⏳ Loading...';
+                
+                // Test conexión a Supabase
+                const { data: testData, error: testError } = await supabase
+                    .from('users')
+                    .select('count')
+                    .limit(1);
+                
+                if (testError) {
+                    throw new Error('Supabase connection failed: ' + testError.message);
+                }
+                
+                document.getElementById('supabaseStatus').textContent = '✅ Connected';
+                updateConnectionStatus('connected', '📡 Conectado a Supabase');
+                
+                // Obtener datos de salud
+                const [heartRateResult, activityResult, sleepResult] = await Promise.all([
+                    getLatestHeartRate(),
+                    getTodayActivity(),
+                    getLatestSleep()
+                ]);
+                
+                // Actualizar UI con los datos
+                updateHealthStats({
+                    heartRate: heartRateResult,
+                    activity: activityResult,
+                    sleep: sleepResult
+                });
+                
+                document.getElementById('lastSync').textContent = new Date().toLocaleTimeString('es-ES');
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('supabaseStatus').textContent = '❌ Error';
+                updateConnectionStatus('error', '❌ Error de conexión');
+                showMessage('Error al cargar datos: ' + error.message, 'error');
+            }
+        }
+        
+        async function getLatestHeartRate() {
+            try {
+                const { data, error } = await supabase
+                    .from('health_data')
+                    .select('value, recorded_at')
+                    .eq('user_id', TEST_USER_ID)
+                    .eq('metric_type', 'heart_rate')
+                    .order('recorded_at', { ascending: false })
+                    .limit(1);
+                
+                if (error) throw error;
+                return data && data.length > 0 ? data[0] : null;
+            } catch (error) {
+                console.error('Error getting heart rate:', error);
+                return null;
+            }
+        }
+        
+        async function getTodayActivity() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const { data, error } = await supabase
+                    .from('daily_activity')
+                    .select('steps, distance_meters, calories_burned')
+                    .eq('user_id', TEST_USER_ID)
+                    .eq('activity_date', today);
+                
+                if (error) throw error;
+                return data && data.length > 0 ? data[0] : null;
+            } catch (error) {
+                console.error('Error getting activity:', error);
+                return null;
+            }
+        }
+        
+        async function getLatestSleep() {
+            try {
+                const { data, error } = await supabase
+                    .from('sleep_sessions')
+                    .select('total_duration_minutes, sleep_quality_score')
+                    .eq('user_id', TEST_USER_ID)
+                    .order('sleep_start', { ascending: false })
+                    .limit(1);
+                
+                if (error) throw error;
+                return data && data.length > 0 ? data[0] : null;
+            } catch (error) {
+                console.error('Error getting sleep:', error);
+                return null;
+            }
+        }
+        
+        function updateHealthStats(data) {
+            // Heart Rate
+            if (data.heartRate) {
+                document.getElementById('heartRateValue').textContent = data.heartRate.value;
+            }
+            
+            // Activity
+            if (data.activity) {
+                document.getElementById('stepsValue').textContent = data.activity.steps.toLocaleString();
+                document.getElementById('caloriesValue').textContent = data.activity.calories_burned;
+            }
+            
+            // Sleep
+            if (data.sleep) {
+                const hours = Math.floor(data.sleep.total_duration_minutes / 60);
+                const minutes = data.sleep.total_duration_minutes % 60;
+                document.getElementById('sleepValue').textContent = `${hours}h ${minutes}m`;
+            }
+            
+            // Count records
+            let recordCount = 0;
+            if (data.heartRate) recordCount++;
+            if (data.activity) recordCount++;
+            if (data.sleep) recordCount++;
+            
+            document.getElementById('recordsCount').textContent = recordCount + ' records';
+        }
+        
+        function updateConnectionStatus(status, text) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `connection-status ${status}`;
+            statusEl.textContent = text;
+        }
+        
+        async function syncWithSupabase() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const btn = document.getElementById('syncButton');
+            const loadingEl = document.getElementById('loading');
+            
+            btn.innerHTML = '⏳ Syncing...';
+            btn.disabled = true;
+            loadingEl.style.display = 'flex';
+            
+            try {
+                // Insertar datos de prueba usando la API
+                const heartRateData = {
+                    userId: TEST_USER_ID,
+                    deviceId: 'galaxy-watch-6',
+                    value: Math.floor(Math.random() * 30) + 60, // 60-90 BPM
+                    timestamp: new Date().toISOString(),
+                    accuracy: 95
+                };
+                
+                const response = await fetch('http://localhost:3001/api/samsung/sync-heart-rate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(heartRateData)
+                });
+                
+                if (response.ok) {
+                    showMessage('✅ Datos sincronizados correctamente con Supabase', 'success');
+                    // Recargar datos
+                    await loadHealthDataFromSupabase();
+                } else {
+                    const error = await response.text();
+                    throw new Error('API Error: ' + error);
+                }
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+                showMessage('❌ Error en sincronización: ' + error.message, 'error');
+            } finally {
+                isLoading = false;
+                btn.innerHTML = '🔄 Sync Samsung Health Data';
+                btn.disabled = false;
+                loadingEl.style.display = 'none';
+            }
+        }
+        
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const messageEl = document.createElement('div');
+            messageEl.className = `${type}-message`;
+            messageEl.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(messageEl);
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+        
+        function viewHistory() {
+            showMessage('📊 Vista de historial - Esta función mostrará gráficos y tendencias de todos tus datos almacenados en Supabase', 'success');
+        }
+    </script>
+</body>
+</html>
